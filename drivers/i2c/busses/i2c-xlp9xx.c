@@ -291,7 +291,8 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 			       int last_msg)
 {
 	unsigned long timeleft;
-	u32 intr_mask, cmd, val, len;
+	u32 intr_mask, cmd, val, len, status;
+	u32 busy_timeout = XLP9XX_I2C_BUSY_TIMEOUT;
 
 	priv->msg_buf = msg->buf;
 	priv->msg_buf_remaining = priv->msg_len = msg->len;
@@ -380,6 +381,19 @@ static int xlp9xx_i2c_xfer_msg(struct xlp9xx_i2c_dev *priv, struct i2c_msg *msg,
 		return -ETIMEDOUT;
 	}
 
+	while (last_msg && busy_timeout) {
+		status = xlp9xx_read_i2c_reg(priv, XLP9XX_I2C_STATUS);
+		if ((status & XLP9XX_I2C_STATUS_BUSY) == 0)
+			break;
+
+		busy_timeout--;
+		udelay(1);
+	}
+
+	if (!busy_timeout) {
+		dev_dbg(priv->dev, "i2c bus busy for too long after transfer\n");
+		return -EIO;
+	}
 	/* update msg->len with actual received length */
 	if (msg->flags & I2C_M_RECV_LEN)
 		msg->len = priv->msg_len;
