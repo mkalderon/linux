@@ -1154,6 +1154,18 @@ static void quirk_ide_samemode(struct pci_dev *pdev)
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_10, quirk_ide_samemode);
 
 /*
+ * Cavium's Thunder-X2 Processors root port doesnot handle cfg/ecfg access to
+ * downstream properly if root port is put into D3
+ */
+
+static void quirk_no_rootport_d3(struct pci_dev *pdev)
+{
+	pdev->dev_flags |= PCI_DEV_FLAGS_NO_D3;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM, 0x9084, quirk_no_rootport_d3);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_CAVIUM, 0xaf84, quirk_no_rootport_d3);
+
+/*
  * Some ATA devices break if put into D3
  */
 
