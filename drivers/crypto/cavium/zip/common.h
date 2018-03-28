@@ -46,8 +46,10 @@
 #ifndef __COMMON_H__
 #define __COMMON_H__
 
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -148,6 +150,26 @@ struct zip_operation {
 	u32   sizeofptr;
 	u32   sizeofzops;
 };
+
+#define ZIP_POLL_DELAY 20 /* microseconds */
+#define ZIP_POLL_TIMEOUT (msecs_to_jiffies(1000))
+
+static inline int zip_poll_result(union zip_zres_s *result)
+{
+	u64 end = get_jiffies_64() + ZIP_POLL_TIMEOUT;
+
+	while (!result->s.compcode) {
+		/*
+		 * Force re-reading of compcode which is updated
+		 * by the ZIP coprocessor.
+		 */
+		rmb();
+		if (time_after64(get_jiffies_64(), end))
+			return -ETIMEDOUT;
+		usleep_range(ZIP_POLL_DELAY / 2, ZIP_POLL_DELAY);
+	}
+	return 0;
+}
 
 /* error messages */
 #define zip_err(fmt, args...) pr_err("ZIP ERR:%s():%d: " \
