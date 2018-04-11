@@ -1931,8 +1931,15 @@ static void nicvf_set_rx_mode_task(struct work_struct *work_arg)
 	union nic_mbx mbx = {};
 	int idx;
 
-	if (!vf_work)
+	/* Check for link state before proceed: if link_up is false
+	 * we'll fail to communicate with PF, due to message box
+	 * interrupts would be disabled by nicvf_close()
+	 */
+	if (!nic->link_up) {
+		if (vf_work->mc)
+			kfree(vf_work->mc);
 		return;
+	}
 
 	/* From the inside of VM code flow we have only 128 bits memory
 	 * available to send message to host's PF, so send all mc addrs
